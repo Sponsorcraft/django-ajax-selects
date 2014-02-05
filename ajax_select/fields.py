@@ -405,6 +405,10 @@ def plugin_options(channel, channel_name, widget_plugin_options, initial):
     if po.get('html') is None:
         po['html'] = True
 
+    # Shim
+    if 'initial' in po:
+        po['initial'] = str(po['initial'])
+
     return {
         'plugin_options': mark_safe(json.dumps(po)),
         'data_plugin_options': force_escape(json.dumps(po)),
