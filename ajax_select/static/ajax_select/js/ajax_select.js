@@ -1,4 +1,3 @@
-
 if(typeof jQuery.fn.autocompletehtml != 'function') {
 
 (function($) {
@@ -45,22 +44,50 @@ $.fn.autocompleteselect = function(options) {
       //$this.val(ui.item.pk);
       $('input[name='+$this.attr('name')+']').val(ui.item.pk);
 
-      $text.val('');
-      addKiller(ui.item.repr);
-      $deck.trigger("added");
+      options.select = receiveResult;
+      $text.autocomplete(options);
 
-      return false;
-    }
+      function reset() {
+        if (options.initial) {
+          addKiller(options.initial[0], options.initial[1]);
+          $this.val(options.initial[1]);
+        } else {
+          kill();
+        }
+      }
 
-    function addKiller(repr,pk) {
-      killer_id = "kill_" + pk + id;
-      killButton = '<span class="ui-icon ui-icon-trash" id="'+killer_id+'">X</span> ';
-      if (repr) {
-        $deck.empty();
-        document.getElementById('id_institution_text').style.display='none';
-        $deck.append("<div>" + killButton + "<input class='disabled' value='" + repr + "' disabled></div>");
-      } else {
-        $("#"+id+"_on_deck > div").prepend(killButton);
+      if (!$this.attr('data-changed')) {
+        reset();
+        $this.attr('data-changed', true);
+      }
+
+      $this.closest('form').on('reset', reset);
+
+      $this.bind('didAddPopup', function(event, pk, repr) {
+        receiveResult(null, {item: {pk: pk, repr: repr}});
+      });
+    });
+  };
+
+  $.fn.autocompleteselectmultiple = function(options) {
+    return this.each(function() {
+      var id = this.id,
+          $this = $(this),
+          $text = $('#' + id + '_text'),
+          $deck = $('#' + id + '_on_deck');
+
+      function receiveResult(event, ui) {
+        var pk = ui.item.pk,
+            prev = $this.val();
+
+        if (prev.indexOf('|' + pk + '|') === -1) {
+          $this.val((prev ? prev : '|') + pk + '|');
+          addKiller(ui.item.repr, pk);
+          $text.val('');
+          $deck.trigger('added', [ui.item.pk, ui.item]);
+          $this.trigger('change');
+        }
+        return false;
       }
       $("#" + killer_id).click(function() {
         kill();
@@ -69,72 +96,48 @@ $.fn.autocompleteselect = function(options) {
       });
     }
 
-    function kill() {
-      $this.val('');
-      $deck.children().fadeOut(1.0).remove();
-    }
-    
-    options.select = receiveResult;
-    $text.autocomplete(options);
-    _init($deck,$text);
-    
-    if (options.initial) {
-      its = options.initial;
-      addKiller(options.initial, its[1]);
-    }
+      function addKiller(repr, pk) {
+        var killId = 'kill_' + pk + id,
+            killButton = '<span class="ui-icon ui-icon-trash" id="' + killId + '">X</span> ';
+        $deck.append('<div id="' + id + '_on_deck_' + pk + '">' + killButton + repr + ' </div>');
 
-    $this.bind('didAddPopup', function(event, pk, repr) {
-      ui = { item: { pk: pk, repr: repr } }
-      receiveResult(null, ui);
-    });
-  });
-};
-
-$.fn.autocompleteselectmultiple = function(options) {
-  return this.each(function() {
-    var id = this.id;
-
-    var $this = $(this);
-    var $text = $("#"+id+"_text");
-    var $deck = $("#"+id+"_on_deck");
-
-    function receiveResult(event, ui) {
-      pk = ui.item.pk;
-      prev = $this.val();
-      
-      if (prev.indexOf("|"+pk+"|") == -1) {
-        $this.val((prev ? prev : "|") + pk + "|");
-        addKiller(ui.item.repr, pk);
-        $text.val('');
-        $deck.trigger("added");
+        $('#' + killId).click(function() {
+          kill(pk);
+          $deck.trigger('killed', [pk]);
+        });
       }
 
-      return false;
-    }
+      function kill(pk) {
+        $this.val($this.val().replace('|' + pk + '|', '|'));
+        $('#' + id + '_on_deck_' + pk).fadeOut().remove();
+      }
 
     function addKiller(repr, pk) {
       killer_id = "kill_" + pk + id;
       killButton = '<span class="ui-icon ui-icon-trash" id="'+killer_id+'">X</span> ';
       $deck.append('<div id="'+id+'_on_deck_'+pk+'">' + killButton + repr + ' </div>');
 
-      $("#"+killer_id).click(function() {
-        kill(pk);
-        $deck.trigger("killed");
-      });
-    }
+      function reset() {
+        $deck.empty();
+        var query = '|';
+        if (options.initial) {
+          $.each(options.initial, function(i, its) {
+            addKiller(its[0], its[1]);
+            query += its[1] + '|';
+          });
+        }
+        $this.val(query);
+      }
 
-    function kill(pk) {
-      $this.val($this.val().replace("|" + pk + "|", "|"));
-      $("#"+id+"_on_deck_"+pk).fadeOut().remove();
-    }
+      if (!$this.attr('data-changed')) {
+        reset();
+        $this.attr('data-changed', true);
+      }
 
-    options.select = receiveResult;
-    $text.autocomplete(options);
-    _init($deck,$text);
-    
-    if (options.initial) {
-      $.each(options.initial, function(i, its) {
-        addKiller(its[0], its[1]);
+      $this.closest('form').on('reset', reset);
+
+      $this.bind('didAddPopup', function(event, pk, repr) {
+        receiveResult(null, {item: {pk: pk, repr: repr}});
       });
     }
 
@@ -163,12 +166,71 @@ $.fn.autocompleteselectmultiple = function(options) {
     }
     callback(html_id);
   }
-/*  the popup handler
-  requires RelatedObjects.js which is part of the django admin js
-  so if using outside of the admin then you would need to include that manually */
-  function didAddPopup(win,newId,newRepr) {
-    var name = windowname_to_id(win.name);
-    jQuery("#"+name).trigger('didAddPopup',[html_unescape(newId),html_unescape(newRepr)]);
+
+  $.extend(proto, {
+    _initSource: function() {
+      if (this.options.html && $.isArray(this.options.source)) {
+        this.source = function(request, response) {
+          response(filter(this.options.source, request.term));
+        };
+      } else {
+        initSource.call(this);
+      }
+    },
+    _renderItem: function(ul, item) {
+      var body = this.options.html ? item.match: item.label;
+      return $('<li></li>')
+        .data('item.autocomplete', item)
+        .append($('<a></a>')[this.options.html ? 'html' : 'text' ](body))
+        .appendTo(ul);
+    }
+  });
+
+  /*  the popup handler
+    requires RelatedObjects.js which is part of the django admin js
+    so if using outside of the admin then you would need to include that manually */
+  window.didAddPopup = function (win, newId, newRepr) {
+    var name = window.windowname_to_id(win.name);
+    $('#' + name).trigger('didAddPopup', [window.html_unescape(newId), window.html_unescape(newRepr)]);
     win.close();
-  }
-}
+  };
+
+  // activate any on page
+  $(window).bind('init-autocomplete', function() {
+
+    $('input[data-ajax-select=autocomplete]').each(function(i, inp) {
+      addAutoComplete(inp, function($inp, opts) {
+        opts.select =
+            function(event, ui) {
+              $inp.val(ui.item.value).trigger('added', [ui.item.pk, ui.item]);
+              return false;
+            };
+        $inp.autocomplete(opts);
+      });
+    });
+
+    $('input[data-ajax-select=autocompleteselect]').each(function(i, inp) {
+      addAutoComplete(inp, function($inp, opts) {
+        $inp.autocompleteselect(opts);
+      });
+    });
+
+    $('input[data-ajax-select=autocompleteselectmultiple]').each(function(i, inp) {
+      addAutoComplete(inp, function($inp, opts) {
+        $inp.autocompleteselectmultiple(opts);
+      });
+    });
+
+  });
+
+  $(document).ready(function() {
+    // if dynamically injecting forms onto a page
+    // you can trigger them to be ajax-selects-ified:
+    $(window).trigger('init-autocomplete');
+    $(document)
+      .on('click', '.inline-group ul.tools a.add, .inline-group div.add-row a, .inline-group .tabular tr.add-row td a', function() {
+        $(window).trigger('init-autocomplete');
+      });
+  });
+
+})(window.jQuery);

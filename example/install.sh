@@ -1,4 +1,4 @@
-#!/bin/sh
+#!/bin/bash
 
 # break on any error
 set -e
@@ -16,13 +16,17 @@ else
     pip install django
 fi
 
-echo "Creating a sqllite database:"
-./manage.py syncdb
-
 if [ ! -d ./ajax_select ]; then
 	echo "\nSymlinking ajax_select into this app directory:"
 	ln -s ../ajax_select/ ./ajax_select
 fi
+
+echo "Creating a sqllite database:"
+./manage.py migrate
+
+echo "Create example migrations" 
+./manage.py makemigrations example
+./manage.py migrate example
 
 echo "\nto activate the virtualenv:\nsource AJAXSELECTS/bin/activate"
 

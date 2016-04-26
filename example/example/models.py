@@ -1,5 +1,6 @@
 # -*- coding: utf8 -*-
 
+from __future__ import unicode_literals
 from django.db import models
 
 
@@ -18,7 +19,9 @@ class Group(models.Model):
     """ a music group """
 
     name = models.CharField(max_length=200, unique=True, help_text="Name of the group")
-    members = models.ManyToManyField(Person, blank=True, help_text="Enter text to search for and add each member of the group.")
+    members = models.ManyToManyField(Person,
+        blank=True,
+        help_text="Enter text to search for and add each member of the group.")
     url = models.URLField(blank=True)
 
     def __unicode__(self):
@@ -55,7 +58,7 @@ class Release(models.Model):
     title = models.CharField(max_length=100)
     catalog = models.CharField(blank=True, max_length=100)
 
-    group = models.ForeignKey(Group, blank=True, null=True, verbose_name=u"Русский текст (group)")
+    group = models.ForeignKey(Group, blank=True, null=True, verbose_name="Русский текст (group)")
     label = models.ForeignKey(Label, blank=False, null=False)
     songs = models.ManyToManyField(Song, blank=True)
 
